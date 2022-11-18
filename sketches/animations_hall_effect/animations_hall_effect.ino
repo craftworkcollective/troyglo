@@ -3,6 +3,7 @@
 volatile int revolutions;
 int revValue;
 float rpm;
+int rmpMap; 
 unsigned long threshold;
 unsigned long timerStart;
 
@@ -14,8 +15,8 @@ unsigned long timerStart;
 #endif
 
 #define LED_PIN     6
-#define LED_COUNT  16
-#define BRIGHTNESS 50 // Set BRIGHTNESS to about 1/5 (max = 255)
+#define LED_COUNT  32
+#define BRIGHTNESS 255 // Set BRIGHTNESS to about 1/5 (max = 255)
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRBW + NEO_KHZ800);
 
 void setup() {
@@ -24,6 +25,7 @@ void setup() {
   attachInterrupt(0, magnet_detect, RISING);//Initialize the intterrupt pin (Arduino digital pin 2)
   revolutions = 0;
   rpm = 0;
+  rmpMap = 0; 
   timerStart = 0;
   threshold = 1000; // 10 seconds
 
@@ -37,12 +39,12 @@ void loop() {
 
   updateHallEffect();
 
-  int mappedVal = map(rpm, 0, 300, 0, 255);
+  rmpMap = map(rpm, 0, 150, 0, 255);
 
-  Serial.print("mappedVal: ");
-  Serial.println(mappedVal);
+  //Serial.print("rmpMap: ");
+  //Serial.println(rmpMap);
 
-  strip.fill(strip.Color(0, 0, mappedVal, strip.gamma8(255)));
+  strip.fill(strip.Color(0, rmpMap, rmpMap, strip.gamma8(255)));
   strip.show();
 
 }
