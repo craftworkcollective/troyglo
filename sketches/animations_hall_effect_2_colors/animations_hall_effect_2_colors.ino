@@ -1,9 +1,12 @@
 //HALL EFFECT SENSOR
 #include <util/atomic.h>
+#include <Adafruit_SleepyDog.h>
+
 volatile int revolutions;
 int revValue;
 float rpm;
 int rmpMap;
+int rmpMap_g;
 unsigned long threshold;
 unsigned long timerStart;
 
@@ -17,6 +20,18 @@ unsigned long timerStart;
 #define LED_COUNT 32
 #define BRIGHTNESS 50  // Set BRIGHTNESS to about 1/5 (max = 255)
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRBW + NEO_KHZ800);
+
+// MAPPING
+uint8_t start_r = 255;
+uint8_t start_g = 0;
+uint8_t start_b = 0;
+uint8_t end_r = 255;
+uint8_t end_g = 0;
+uint8_t end_b = 0;
+
+
+// LED MINS AND MAXES
+long maxRPM = 420;
 
 void setup() {
   // Setup hall effect
@@ -32,30 +47,66 @@ void setup() {
   strip.begin();  // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();   // Turn OFF all pixels ASAP
   strip.setBrightness(BRIGHTNESS);
-}
 
-uint8_t start_r = 255;
-uint8_t start_b = 0;
-uint8_t end_r = 255;
-uint8_t end_b = 0;
+  // enable watchdog
+  int countdownMS = Watchdog.enable(4000); // 10 seconds 
+}
 
 void loop() {
 
+  // strip.fill(strip.Color(255, 100, 0, 255));
+  // strip.show();
+  // return;
   // HALL EFFECT DATA
   updateHallEffect();
 
   // MAP RMP
   rmpMap = map(rpm, 0, 420, 0, 255);
   rmpMap = constrain(rmpMap, 0, 255);
-  //Serial.print("rmpMap: ");
-  //Serial.println(rmpMap);
+  //Serial.println("rmpMap: " + String(rmpMap));
+  //Serial.println("rpm: " + String(rpm));
+  //Serial.println("end_r: " + String(end_r));
 
   // NEO PIXEL ANIMATION
-  end_r = 255 - rmpMap; 
+  // WIP: Ambient Animation
+  /*
+  if (rpm == 0 && end_g == 0) {
+    end_r = 255;
+    end_b = 0;
+    end_g = 100;
+    animate_gradient_fill(start_r, start_g, start_b, 255, end_r, end_g, end_b, 255, 1000);
+    start_r = end_r;
+    start_b = end_b;
+    start_g = end_g;
+  } else if (rpm == 0 && end_g == 100) {
+    end_r = 255;
+    end_b = 0;
+    end_g = 0;
+    animate_gradient_fill(start_r, start_g, start_b, 255, end_r, end_g, end_b, 255, 1000);
+    start_r = end_r;
+    start_b = end_b;
+    start_g = end_g;
+  } */
+
+  int blueThreshold = 220; 
+  int greenThreshold = 420; 
+  rmpMap = map(rpm, 0, blueThreshold, 0, 255);
+  rmpMap = constrain(rmpMap, 0, 255);
+
+  rmpMap_g = map(rpm, blueThreshold, greenThreshold, 0, 255);
+  rmpMap_g = constrain(rmpMap_g, 0, 255);
+
+  end_r = 255 - rmpMap;
+  end_g = rmpMap_g;
   end_b = rmpMap;
-  animate_gradient_fill(start_r, 0, start_b, 255, end_r, 0, end_b, 255, 1000);
-  start_r = end_r; 
-  start_b = end_b; 
+  //animate_gradient_fill(start_r, 0, start_b, 255, end_r, 0, end_b, 255, 1000);
+  animate_gradient_fill(start_r, start_g, start_b, 255, end_r, end_g, end_b, 255, 1000);
+  start_r = end_r;
+  start_g = end_g;
+  start_b = end_b;
+
+  // Reset watchdog 
+   Watchdog.reset();
 }
 
 // HALL EFFECT
@@ -68,14 +119,13 @@ void updateHallEffect() {
   unsigned long difference = millis() - timerStart;
 
   if (difference >= threshold) {
-    Serial.println("revValue: " + (String)revValue);
+    //Serial.println("revValue: " + (String)revValue);
 
     // 1 rev / 1 ms X 1000 ms / 1 s X 60 s / 1 min
     rpm = 1000.0 * 60.0 / (float)threshold * (float)revValue;
     timerStart = millis();
     revolutions = 0;
     Serial.println("rpm: " + (String)rpm);
-
   }
 }
 

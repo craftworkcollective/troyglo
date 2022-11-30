@@ -20,8 +20,6 @@ void loop() {
 
 
   // NEO PIXEL ANIMATION
-  //strip.fill(strip.Color(0, 0, 255, strip.gamma8(255)));
-  //strip.show();
 
   animate_gradient_fill(255, 0, 0, 255, 0, 0, 255, 255, 1000);
   animate_gradient_fill(0, 0, 255, 255, 255, 0, 0, 255, 1000);
