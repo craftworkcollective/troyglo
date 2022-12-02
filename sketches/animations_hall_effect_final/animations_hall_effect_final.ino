@@ -10,6 +10,8 @@ int rmpMap_g = 10;
 int rmpMap_b = 0;
 unsigned long threshold;
 unsigned long timerStart;
+unsigned long timerAmbientStart;
+int ambientElapsed = 5000;
 
 // NEO PIXELS
 #include <Adafruit_NeoPixel.h>
@@ -49,50 +51,64 @@ void setup() {
   strip.setBrightness(BRIGHTNESS);
 
   // enable watchdog
-  int countdownMS = Watchdog.enable(4000); // 10 seconds 
+  int countdownMS = Watchdog.enable(30000);  // 10 seconds
 }
+
+bool startTimer = false;
 
 void loop() {
 
+  // HALL EFFECT DATA
   updateHallEffect();
 
   // MAP RMP
-  //rmpMap = map(rpm, 0, 420, 0, 255);
-  //rmpMap = constrain(rmpMap, 0, 255);
   //Serial.println("rmpMap: " + String(rmpMap));
-  //Serial.println("rpm: " + String(rpm));
-  //Serial.println("end_r: " + String(end_r));
 
   // NEO PIXEL ANIMATION
+  // WIP: Ambient Animation
+  // start time
 
-  //mid lamp: 
-  // midThreshold = 60 
-  // fast = 180
-  int middleThreshold = 60; 
-  int maxThreshold = 180; 
+  if (rpm == 0.00 && !startTimer) {
+    startTimer = true;
+    timerAmbientStart = millis();
+  } else if (rpm > 0) {
+    startTimer = false;
+  }
 
-  //fast lmap 120, 240
+  unsigned long elapsed_time = millis() - timerAmbientStart;
 
-  rmpMap_r = map(rpm, 0, middleThreshold, 0, 255);
-  rmpMap_r = constrain(rmpMap_r, 0, 255);
+  if (startTimer && elapsed_time > ambientElapsed) {
+    Serial.println("ANIMATING BRIGHTNESS " + (String)startTimer);
+    // brightness animation
+    animate_gradient_fill(255, 10, 0, 255, 100, 0, 0, 255, 10000);
+    animate_gradient_fill(100, 0, 0, 255, 255, 10, 0, 255, 10000);
+  } else {
+    Serial.println("ANIMATING SENSOR: " + (String)elapsed_time);
+    int middleThreshold = 220;
+    int maxThreshold = 420;
 
-  rmpMap_g = map(rpm, 0, middleThreshold, 0, 10);
-  rmpMap_g = constrain(rmpMap_g, 0, 10);
+    rmpMap_r = map(rpm, 0, middleThreshold, 0, 255);
+    rmpMap_r = constrain(rmpMap_r, 0, 255);
 
-  rmpMap_b = map(rpm, middleThreshold, maxThreshold, 0, 255);
-  rmpMap_b = constrain(rmpMap_b, 0, 255);
+    rmpMap_g = map(rpm, 0, middleThreshold, 0, 10);
+    rmpMap_g = constrain(rmpMap_g, 0, 10);
 
-  end_r = 255 - rmpMap_r;
-  end_g = 10 - rmpMap_g;
-  end_b = rmpMap_b;
-  // animate_gradient_fill(start_r, 0, start_b, 255, end_r, 0, end_b, 255, 1000);
-  animate_gradient_fill(start_r, start_g, start_b, 255, end_r, end_g, end_b, 255, 1000);
-  start_r = end_r;
-  start_g = end_g;
-  start_b = end_b;
+    rmpMap_b = map(rpm, middleThreshold, maxThreshold, 0, 255);
+    rmpMap_b = constrain(rmpMap_b, 0, 255);
 
-  // Reset watchdog 
-   Watchdog.reset();
+    end_r = 255 - rmpMap_r;
+    end_g = 10 - rmpMap_g;
+    end_b = rmpMap_b;
+    // animate_gradient_fill(start_r, 0, start_b, 255, end_r, 0, end_b, 255, 1000);
+    animate_gradient_fill(start_r, start_g, start_b, 255, end_r, end_g, end_b, 255, 1000);
+    start_r = end_r;
+    start_g = end_g;
+    start_b = end_b;
+  }
+
+
+  // Reset watchdog
+  Watchdog.reset();
 }
 
 // HALL EFFECT
@@ -111,7 +127,7 @@ void updateHallEffect() {
     rpm = 1000.0 * 60.0 / (float)threshold * (float)revValue;
     timerStart = millis();
     revolutions = 0;
-    Serial.println("rpm: " + (String)rpm);
+    Serial.println("rpm, starttimer: " + (String)rpm + ", " + (String)startTimer);
   }
 }
 
@@ -154,6 +170,7 @@ void animate_gradient_fill(
   strip.show();
 }
 
+
 uint32_t color_gradient(uint8_t start_r,
                         uint8_t start_g,
                         uint8_t start_b,
@@ -167,6 +184,14 @@ uint32_t color_gradient(uint8_t start_r,
   uint8_t green = (uint8_t)lerp(pos, 0.0, 1.0, start_g, end_g);
   uint8_t blue = (uint8_t)lerp(pos, 0.0, 1.0, start_b, end_b);
   uint8_t white = (uint8_t)lerp(pos, 0.0, 1.0, start_w, end_w);
+
+  if (startTimer && rpm > 0) {
+    start_r = red;
+    start_g = green;
+    start_b = blue;
+    return;
+  }
+
   return Adafruit_NeoPixel::Color(red, green, blue, white);
 }
 

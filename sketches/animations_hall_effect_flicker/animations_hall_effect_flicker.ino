@@ -45,54 +45,43 @@ void setup() {
 
   // Setup neopixels
   strip.begin();  // INITIALIZE NeoPixel strip object (REQUIRED)
+  strip.fill(strip.Color(255, 10, 0, 255));
+  strip.show(); 
   strip.show();   // Turn OFF all pixels ASAP
   strip.setBrightness(BRIGHTNESS);
 
   // enable watchdog
-  int countdownMS = Watchdog.enable(4000); // 10 seconds 
+  //int countdownMS = Watchdog.enable(4000); // 10 seconds 
 }
 
 void loop() {
 
-  updateHallEffect();
+  // 255, 10, 0, 255 
+  // 0, 0, 0, 255 midway 
+  // 0, 0, 255 0
+   //strip.fill(strip.Color(0, 0, 255, 255));
+   //strip.show();
+   //return;
+  // HALL EFFECT DATA
+  
+  // weird flicker 
+  //strip.fill(strip.Color(255, 10, 255, 255));
+  //strip.setBrightness(random(100, 255));
+  //strip.show(); 
+  //delay(random(0,200));  
 
-  // MAP RMP
-  //rmpMap = map(rpm, 0, 420, 0, 255);
-  //rmpMap = constrain(rmpMap, 0, 255);
-  //Serial.println("rmpMap: " + String(rmpMap));
-  //Serial.println("rpm: " + String(rpm));
-  //Serial.println("end_r: " + String(end_r));
+  //animate_gradient_fill(255, 10, 0, 255, 0, 0, 0, 255, 10000);  
+  //animate_gradient_fill(0, 0, 0, 255, 0, 0, 255, 255, 10000);
+  //animate_gradient_fill(0, 0, 255, 255, 255, 10, 0, 255, 10000);    
+  
+  animate_brightness_fill(255, 100, 10000);
+  animate_brightness_fill(100, 255, 10000);
 
-  // NEO PIXEL ANIMATION
-
-  //mid lamp: 
-  // midThreshold = 60 
-  // fast = 180
-  int middleThreshold = 60; 
-  int maxThreshold = 180; 
-
-  //fast lmap 120, 240
-
-  rmpMap_r = map(rpm, 0, middleThreshold, 0, 255);
-  rmpMap_r = constrain(rmpMap_r, 0, 255);
-
-  rmpMap_g = map(rpm, 0, middleThreshold, 0, 10);
-  rmpMap_g = constrain(rmpMap_g, 0, 10);
-
-  rmpMap_b = map(rpm, middleThreshold, maxThreshold, 0, 255);
-  rmpMap_b = constrain(rmpMap_b, 0, 255);
-
-  end_r = 255 - rmpMap_r;
-  end_g = 10 - rmpMap_g;
-  end_b = rmpMap_b;
-  // animate_gradient_fill(start_r, 0, start_b, 255, end_r, 0, end_b, 255, 1000);
-  animate_gradient_fill(start_r, start_g, start_b, 255, end_r, end_g, end_b, 255, 1000);
-  start_r = end_r;
-  start_g = end_g;
-  start_b = end_b;
-
+  //animate_gradient_fill(255, 10, 0, 255, 0, 0, 0, 255, 10000);  
+  //animate_gradient_fill(0, 0, 0, 255, 255, 10, 0, 255, 10000);
+  
   // Reset watchdog 
-   Watchdog.reset();
+  // Watchdog.reset();
 }
 
 // HALL EFFECT
@@ -152,6 +141,26 @@ void animate_gradient_fill(
   //end color
   strip.fill(strip.Color(end_r, end_g, end_b, end_w));
   strip.show();
+}
+
+void animate_brightness_fill(
+  uint8_t start_brightness,
+  uint8_t end_brightness,
+  int duration_ms) {
+  unsigned long start = millis();
+
+  // start time
+  unsigned long delta = millis() - start;
+
+  // animation loop
+  while (delta < duration_ms) {
+    float pos = (float)delta / (float)duration_ms;
+    int brightness = (int)lerp(pos, 0.0, 1.0, start_brightness, end_brightness); 
+    strip.setBrightness(brightness); 
+    strip.show();
+    delta = millis() - start;
+  }
+
 }
 
 uint32_t color_gradient(uint8_t start_r,

@@ -10,6 +10,9 @@ int rmpMap_g = 10;
 int rmpMap_b = 0;
 unsigned long threshold;
 unsigned long timerStart;
+unsigned long timerAmbientStart;
+int ambientElapsed = 5000;
+int current_brightness = 255;
 
 // NEO PIXELS
 #include <Adafruit_NeoPixel.h>
@@ -49,50 +52,64 @@ void setup() {
   strip.setBrightness(BRIGHTNESS);
 
   // enable watchdog
-  int countdownMS = Watchdog.enable(4000); // 10 seconds 
+  int countdownMS = Watchdog.enable(30000);  // 10 seconds
 }
+
+bool startTimer = false;
 
 void loop() {
 
+  // HALL EFFECT DATA
   updateHallEffect();
 
   // MAP RMP
-  //rmpMap = map(rpm, 0, 420, 0, 255);
-  //rmpMap = constrain(rmpMap, 0, 255);
   //Serial.println("rmpMap: " + String(rmpMap));
-  //Serial.println("rpm: " + String(rpm));
-  //Serial.println("end_r: " + String(end_r));
 
   // NEO PIXEL ANIMATION
+  // WIP: Ambient Animation
+  // start time
 
-  //mid lamp: 
-  // midThreshold = 60 
-  // fast = 180
-  int middleThreshold = 60; 
-  int maxThreshold = 180; 
+  if (rpm == 0.00 && !startTimer) {
+    startTimer = true;
+    timerAmbientStart = millis();
+  } else if (rpm > 0) {
+    startTimer = false;
+  }
 
-  //fast lmap 120, 240
+  unsigned long elapsed_time = millis() - timerAmbientStart;
 
-  rmpMap_r = map(rpm, 0, middleThreshold, 0, 255);
-  rmpMap_r = constrain(rmpMap_r, 0, 255);
+  if (startTimer && elapsed_time > ambientElapsed) {
+    Serial.println("ANIMATING BRIGHTNESS");
+    // brightness animation
+    animate_brightness_fill(255, 100, 10000);
+    animate_brightness_fill(100, 255, 10000);
+  } else {
+    Serial.println("ANIMATING SENSOR: " + (String)elapsed_time);
+    int middleThreshold = 220;
+    int maxThreshold = 420;
 
-  rmpMap_g = map(rpm, 0, middleThreshold, 0, 10);
-  rmpMap_g = constrain(rmpMap_g, 0, 10);
+    rmpMap_r = map(rpm, 0, middleThreshold, 0, 255);
+    rmpMap_r = constrain(rmpMap_r, 0, 255);
 
-  rmpMap_b = map(rpm, middleThreshold, maxThreshold, 0, 255);
-  rmpMap_b = constrain(rmpMap_b, 0, 255);
+    rmpMap_g = map(rpm, 0, middleThreshold, 0, 10);
+    rmpMap_g = constrain(rmpMap_g, 0, 10);
 
-  end_r = 255 - rmpMap_r;
-  end_g = 10 - rmpMap_g;
-  end_b = rmpMap_b;
-  // animate_gradient_fill(start_r, 0, start_b, 255, end_r, 0, end_b, 255, 1000);
-  animate_gradient_fill(start_r, start_g, start_b, 255, end_r, end_g, end_b, 255, 1000);
-  start_r = end_r;
-  start_g = end_g;
-  start_b = end_b;
+    rmpMap_b = map(rpm, middleThreshold, maxThreshold, 0, 255);
+    rmpMap_b = constrain(rmpMap_b, 0, 255);
 
-  // Reset watchdog 
-   Watchdog.reset();
+    end_r = 255 - rmpMap_r;
+    end_g = 10 - rmpMap_g;
+    end_b = rmpMap_b;
+    // animate_gradient_fill(start_r, 0, start_b, 255, end_r, 0, end_b, 255, 1000);
+    animate_gradient_fill(start_r, start_g, start_b, 255, end_r, end_g, end_b, 255, 1000);
+    start_r = end_r;
+    start_g = end_g;
+    start_b = end_b;
+  }
+
+
+  // Reset watchdog
+  Watchdog.reset();
 }
 
 // HALL EFFECT
@@ -111,7 +128,7 @@ void updateHallEffect() {
     rpm = 1000.0 * 60.0 / (float)threshold * (float)revValue;
     timerStart = millis();
     revolutions = 0;
-    Serial.println("rpm: " + (String)rpm);
+    Serial.println("rpm, starttimer: " + (String)rpm + ", " + (String)startTimer);
   }
 }
 
@@ -145,6 +162,10 @@ void animate_gradient_fill(
     float pos = (float)delta / (float)duration_ms;
     uint32_t color = color_gradient(start_r, start_g, start_b, start_w, end_r, end_g, end_b, end_w, pos);
     strip.fill(color);
+
+    int brightness = (int)lerp(pos, 0.0, 1.0, current_brightness, 255);
+    strip.setBrightness(brightness);
+
     strip.show();
     delta = millis() - start;
   }
@@ -152,6 +173,29 @@ void animate_gradient_fill(
   //end color
   strip.fill(strip.Color(end_r, end_g, end_b, end_w));
   strip.show();
+}
+
+void animate_brightness_fill(
+  uint8_t start_brightness,
+  uint8_t end_brightness,
+  int duration_ms) {
+  unsigned long start = millis();
+
+  // start time
+  unsigned long delta = millis() - start;
+
+  // animation loop
+  while (delta < duration_ms) {
+    float pos = (float)delta / (float)duration_ms;
+    int brightness = (int)lerp(pos, 0.0, 1.0, start_brightness, end_brightness);
+    current_brightness = brightness;
+    strip.setBrightness(brightness);
+    strip.show();
+    delta = millis() - start;
+
+    if (rpm > 0)
+      return;
+  }
 }
 
 uint32_t color_gradient(uint8_t start_r,
